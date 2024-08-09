@@ -1,97 +1,139 @@
-local Wash = false
-local TimeWait =  false
+local ox_inventory = exports.ox_inventory
 local ox_target = exports.ox_target
 
-function Time()
-	TimeWait = true
-	Wait(60 * 1000)
-	TimeWait = false
+local WeaponData = {}
+local itsme
+local active = false
+
+function SpawnPed()
+    if pedSpawned then return end
+    local model = joaat(Config.model)
+        lib.requestModel(model)
+    local coords = Config.coords4
+    local shopdude = CreatePed(0, model, coords.x, coords.y, coords.z-1.0, coords.w, false, false)
+
+    spawnedPed = shopdude
+
+    TaskStartScenarioInPlace(shopdude, 'PROP_HUMAN_STAND_IMPATIENT', 0, true)
+    FreezeEntityPosition(shopdude, true)
+    SetEntityInvincible(shopdude, true)
+    SetBlockingOfNonTemporaryEvents(shopdude, true)
+
+    pedSpawned = true
+
+    ox_target:addLocalEntity(shopdude, {
+        {
+            name = 'weaponrepair',
+            label = 'Ремонт на оръжие',
+            event = 'weaponrepair:client:targetted',
+            icon = 'fa-sharp fa-solid fa-gun',
+            canInteract = function(_, distance)
+                return distance < 2.0
+            end
+        }
+    })
+
 end
 
-function WashingMoney()
-local playerPed = cache.ped or PlayerPedId()
-    if Wash then
-        lib.notify({
-            title = 'Перачев',
-            description = 'Вече перете пари',
-			position = 'center-left',
-            type = 'error'
-        })
-    else
-        if not TimeWait then
-            lib.requestAnimDict('anim@gangops@facility@servers@bodysearch@', 10)
-            TaskPlayAnim(playerPed, 'anim@gangops@facility@servers@bodysearch@', 'player_search', 8.0, -8.0, -1, 48, 0)
-			
-            local input = lib.inputDialog('Перачев Меню', {
-				{
-					type = 'number', 
-					label = 'Минимално количество', 
-					min = 10000,
-					max = 100000, 
-					description = 'Мин. 10 000 Макс 100 000 Маркирани пари', 
-					icon = 'fa-solid fa-sack-dollar'
-				},
-			})
-    
-            if not input then return end
-            local WashAmount = tonumber(input[1])    
-            TriggerServerEvent('jd-moneywash:washAmount', WashAmount)
-            Wait(500)
-            ClearPedTasksImmediately(playerPed)
-        else
-            lib.notify({
-                title = 'Перачев',
-                --description = 'Трябва да изчакате '..Config.time..' минута',
-				description = 'Вече сте ползвали нашите услуги елате пак по късно!',
-				position = 'center-left',
-                type = 'error'
-            })
-        end
-    end
-end
-
-RegisterNetEvent('jd-moneywash:startWashing', function()
-local playerPed = cache.ped or PlayerPedId()
-    Wash = true
-		lib.notify({
-			title = 'Перачев',
-			description = 'Започнали сте процеса на пране',
-			position = 'center-left',
-			type = 'inform'
-		})
-	Wait(1000)
-	TaskStartScenarioInPlace(playerPed, "WORLD_HUMAN_AA_SMOKE")
-	if lib.progressCircle({
-		duration = Config.WashDuration,
-		position = 'bottom',
-		label = 'Изчакайте да ви изчистят парите',
-		useWhileDead = false,
-		canCancel = false,
-	}) then 
-		lib.notify({
-			title = 'Перачев',
-			description = 'Парите са ви чисто нови...',
-			position = 'center-left',
-			type = 'inform'
-		}) 
-	end
-	Wash = false
-	ClearPedTasks(playerPed)
-    Time()
+CreateThread(function()
+    SpawnPed()
 end)
 
-ox_target:addSphereZone({
-	name = "money",
-	coords = vec3(636.55, 2786.3, 42.2),
-	radius = 0.7,
-	options = {
-		{ 
-			icon = "fa-solid fa-sack-dollar",
-			label = 'Пералня', 
-			distance = 2.5,
-			onSelect = function()
-				WashingMoney()
-			end,
-		}
-	}
-})
+RegisterNetEvent('weaponrepair:client:targetted', function()
+    active = lib.callback.await('weaponrepair:callback:active', false)
+    itsme = lib.callback.await('weaponrepair:callback:getped', false)
+    Wait(250)
+    lib.registerContext({
+        id = 'repairmenu',
+        title = 'Ремонт меню',
+        onExit = function()
+            lib.notify({
+                title = 'Гошо Далаверата',
+                description = 'Хм..Проверяваш ли ме? Да не си уше? Марш от тук щом няма какво да поправям',
+                type = 'inform',
+                duration = 5000,
+                position = 'center-left'
+            })
+        end,
+        options = {
+            {
+                title = 'Ремонт на оръжие',
+                disabled = active,
+                description = 'Дай ми оръжието си и ще ти го поправя!',
+                icon = 'fa-solid fa-gun',
+                onSelect = function(args)
+                    lib.notify({
+                        title = 'Гошо Далаверата',
+                        description = 'Благодаря че използвате услугите ми! Това ще отнеме '..tostring(Config.time)..' минути! Моля изчакайте наблизо!',
+                        type = 'success',
+                        duration = 5000,
+                        position = 'center-left'
+                    })
+                end,
+                event = 'weaponrepair:client:repair',
+                args = {
+                    type = 'repair'
+                },
+                metadata = {
+                    {
+                        label = 'Цена', 
+                        value = '$3000'
+                    }
+                }
+            },
+            {
+                title = 'Вземи оръжие',
+                disabled = not itsme,
+                description = 'Вземи си оръжието',
+                icon = 'fa-solid fa-hand',
+                onSelect = function(args)
+                    lib.notify({
+                        title = 'Гошо Далаверата',
+                        description = 'Благодаря че използвахте услугите ми!',
+                        type = 'success',
+                        position = 'center-left'
+                    })
+                end,
+                event = 'weaponrepair:client:repair',
+                args = {
+                    type = 'get'
+                }
+            },
+        }
+    })
+    if ox_inventory:getCurrentWeapon() or itsme then
+        lib.showContext('repairmenu')
+    else
+        lib.notify({
+            title = 'Гошо Далаверата',
+            description = 'Покажете ми оръжието за да видя какво му има!',
+            duration = 5000,
+            type = 'error',
+            position = 'center-left'
+        })
+    end
+end)
+
+RegisterNetEvent('weaponrepair:client:nomoney', function()
+    lib.notify({
+        title = 'Гошо Далаверата',
+        description = 'Нямате достатъчно пари за този ремонт!',
+        type = 'error',
+        position = 'center-left'
+    })
+end)
+
+RegisterNetEvent('weaponrepair:client:repair', function(data)
+    if data.type == 'repair' then
+        local weapon = ox_inventory:getCurrentWeapon()
+        if weapon then
+            TriggerEvent('ox_inventory:disarm')
+            Wait(1500)
+            TriggerServerEvent('weaponrepair:server:repair', weapon)
+        end
+    elseif data.type == 'get' then 
+        TriggerServerEvent('weaponrepair:server:getitem')
+        active = false
+        itsme = false
+    end      
+end)
