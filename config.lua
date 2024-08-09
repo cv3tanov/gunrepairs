@@ -1,5 +1,6 @@
-Config  = {}
+Config = {}
 
---Config.time = 60000 -- След колко време може да переш пак
-Config.Percentage = 0.40 -- 100 000 маркирани = 60 000 чисти
-Config.WashDuration = 60000 -- Колко време да пере парите
+Config.model = 'ig_casey'
+Config.coords4 = vector4(143.022705, -575.4915, 22.070166, 331.856934)
+Config.coords = vec3(143.022537, -575.492798, 22.070166)
+Config.time = 1 -- in minutes repair finish
