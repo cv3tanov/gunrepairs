@@ -1,22 +1,53 @@
 local ox_inventory = exports.ox_inventory
 
-RegisterNetEvent('jd-moneywash:washAmount', function(Amount)
-    local src = source
-    local Percentage = Amount * Config.Percentage
-    local Total = Amount - Percentage
-    local black_money = ox_inventory:Search(src, 'count','black_money')
+local active = false
+local pedid
+local WeaponData
 
-    if black_money >= Amount then
-        ox_inventory:RemoveItem(src, 'black_money', Amount)
-        TriggerClientEvent('jd-moneywash:startWashing', src)
-        Wait(Config.WashDuration)
-        ox_inventory:AddItem(src, 'money', Total)
+RegisterNetEvent('weaponrepair:server:repair', function(weapon)
+    local src = source
+    local minute = 60 * 1000
+    local time = Config.time * minute
+    if ox_inventory:RemoveItem(src, 'money', 3000) then
+        if ox_inventory:RemoveItem(src, weapon.name, 1, weapon.metadata, weapon.slot) then
+            active = true
+            SetTimeout(time, function()
+                pedid = src
+                WeaponData = weapon
+            end)
+        end
     else
-        TriggerClientEvent('ox_lib:notify', src, {
-            title = 'Перачев',
-            description = 'Нямате достатъчно маркирани пари!', 
-            position = 'center-left',
-            type = 'error'
-        })
+        TriggerClientEvent('weaponrepair:client:nomoney', src)
     end
 end)
+
+lib.callback.register('weaponrepair:callback:active', function()
+    return active
+end)
+
+lib.callback.register('weaponrepair:callback:getped', function(source)
+    if active and pedid == source then
+        return true
+    else
+        return false
+    end
+end)
+
+RegisterNetEvent('weaponrepair:server:getitem', function()
+    if WeaponData and pedid then
+        WeaponData.metadata.durability = 100
+        ox_inventory:AddItem(pedid, WeaponData.name, 1, { 
+            serial = WeaponData.metadata.serial, 
+            durability = 100, 
+            ammo = WeaponData.metadata.ammo, 
+            registered = WeaponData.metadata.registered, 
+            components = WeaponData.metadata.components
+        })
+        WeaponData = nil
+        pedid = nil
+        active = false
+    end
+end)
+
+
+
