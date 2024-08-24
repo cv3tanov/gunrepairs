@@ -10,18 +10,18 @@ function SpawnPed()
     local model = joaat(Config.model)
         lib.requestModel(model)
     local coords = Config.coords4
-    local shopdude = CreatePed(0, model, coords.x, coords.y, coords.z-1.0, coords.w, false, false)
+    local gunped = CreatePed(0, model, coords.x, coords.y, coords.z-1.0, coords.w, false, false)
 
-    spawnedPed = shopdude
+    spawnedPed = gunped
 
-    TaskStartScenarioInPlace(shopdude, 'PROP_HUMAN_STAND_IMPATIENT', 0, true)
-    FreezeEntityPosition(shopdude, true)
-    SetEntityInvincible(shopdude, true)
-    SetBlockingOfNonTemporaryEvents(shopdude, true)
+    TaskStartScenarioInPlace(gunped, 'PROP_HUMAN_STAND_IMPATIENT', 0, true)
+    FreezeEntityPosition(gunped, true)
+    SetEntityInvincible(gunped, true)
+    SetBlockingOfNonTemporaryEvents(gunped, true)
 
     pedSpawned = true
 
-    ox_target:addLocalEntity(shopdude, {
+    ox_target:addLocalEntity(gunped, {
         {
             name = 'weaponrepair',
             label = 'Ремонт на оръжие',
